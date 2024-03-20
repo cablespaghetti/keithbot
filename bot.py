@@ -11,9 +11,6 @@ api = API()
 
 
 def repost(tweet):
-    logger.info(
-        f"Posting tweet with id {tweet.id} from {tweet.date} with content {tweet.rawContent}"
-    )
     mastodon = get_mastodon()
     if tweet.quotedTweet:
         post_content = f"{tweet.rawContent}\n\nQuoting Post from {tweet.quotedTweet.user.username}:\n{tweet.quotedTweet.rawContent}\n\n{tweet.quotedTweet.url}"
@@ -21,6 +18,9 @@ def repost(tweet):
         post_content = tweet.rawContent
     status_dict = mastodon.status_post(post_content)
     if status_dict:
+        logger.info(
+            f"Posted tweet with id {tweet.id} from {tweet.date} with content {post_content}"
+        )
         field_names = ("id", "date")
         with open("tweets.csv", "a") as tweet_file:
             writer = csv.DictWriter(tweet_file, field_names)
@@ -46,7 +46,7 @@ def get_mastodon() -> Mastodon:
     Returns:
         Mastodon: The instance of the Mastodon Class
     """
-    access_token = os.environ.get("MASTODON_ACCESS_TOKEN", "")
+    access_token = os.environ.get("MASTODON_ACCESS_TOKEN", "banana")
     api_base_url = os.environ.get("MASTODON_BASE_URL", "https://social.running.cafe")
 
     if not access_token or not api_base_url:
