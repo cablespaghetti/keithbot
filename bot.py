@@ -14,7 +14,11 @@ def repost(tweet):
         f"Posting tweet with id {tweet.id} from {tweet.date} with content {tweet.rawContent}"
     )
     mastodon = get_mastodon()
-    status_dict = mastodon.status_post(tweet.rawContent)
+    if tweet.quotedTweet:
+        post_content = tweet.rawContent + " Quoting Post: " + tweet.quotedTweet.url
+    else:
+        post_content = tweet.rawContent
+    status_dict = mastodon.status_post(post_content)
     if status_dict:
         field_names = ("id", "date")
         with open("tweets.csv", "a") as tweet_file:
@@ -76,8 +80,7 @@ if __name__ == "__main__":
             posts_scraped_counter.inc(len(tweet_list))
             for tweet in tweet_list:
                 if (
-                    (not tweet.quotedTweet)
-                    and (not tweet.retweetedTweet)
+                    (not tweet.retweetedTweet)
                     and ("keithdunn" in tweet.url)
                 ):
                     if not check_tweet_file(tweet.id):
