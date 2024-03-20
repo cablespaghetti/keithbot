@@ -16,7 +16,7 @@ def repost(tweet):
     )
     mastodon = get_mastodon()
     if tweet.quotedTweet:
-        post_content = tweet.rawContent + " Quoting Post: " + tweet.quotedTweet.url
+        post_content = tweet.rawContent + " \n\nQuoting Post: " + tweet.quotedTweet.url
     else:
         post_content = tweet.rawContent
     status_dict = mastodon.status_post(post_content)
