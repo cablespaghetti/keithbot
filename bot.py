@@ -4,6 +4,7 @@ from mastodon import Mastodon
 import csv
 from time import sleep
 from prometheus_client import start_http_server, Counter
+import os
 
 
 api = API()
