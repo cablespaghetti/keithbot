@@ -16,7 +16,7 @@ def repost(tweet):
     )
     mastodon = get_mastodon()
     if tweet.quotedTweet:
-        post_content = tweet.rawContent + " \n\nQuoting Post: " + tweet.quotedTweet.url
+        post_content = f"{tweet.rawContent}\n\nQuoting Post from {tweet.quotedTweet.user.username}:\n{tweet.quotedTweet.rawContent}\n\n{tweet.quotedTweet.url}"
     else:
         post_content = tweet.rawContent
     status_dict = mastodon.status_post(post_content)
@@ -80,10 +80,7 @@ if __name__ == "__main__":
             logger.info(f"Got {len(tweet_list)} posts from Twitter")
             posts_scraped_counter.inc(len(tweet_list))
             for tweet in tweet_list:
-                if (
-                    (not tweet.retweetedTweet)
-                    and ("keithdunn" in tweet.url)
-                ):
+                if (not tweet.retweetedTweet) and ("keithdunn" in tweet.url):
                     if not check_tweet_file(tweet.id):
                         status_dict = repost(tweet)
                         if status_dict:
