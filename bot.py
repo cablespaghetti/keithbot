@@ -27,7 +27,7 @@ def check_tweet_file(tweet_id):
         reader = csv.DictReader(tweet_file, field_names)
         for row in reader:
             if row["id"] == str(tweet_id):
-                logging.debug("Already tweeted " + str(tweet_id))
+                logger.debug("Already tweeted " + str(tweet_id))
                 return True
     return False
 

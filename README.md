@@ -4,7 +4,7 @@
 * twscrape login: `twscrape login_accounts --manual` or maybe `twscrape relogin_failed`
 * twscrape status check: `twscrape accounts`
 
-##Env vars
+## Env vars
 
 * `MASTODON_ACCESS_TOKEN`
 * `MASTODON_BASE_URL`
