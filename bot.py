@@ -71,4 +71,4 @@ if __name__ == "__main__":
                         repost(tweet)
         except Exception as e:
             logger.error(e)
-        sleep(30)
+        sleep(60)
