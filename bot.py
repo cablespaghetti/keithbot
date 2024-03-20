@@ -1,5 +1,5 @@
 import asyncio
-from twscrape import API, gather
+from twscrape import API, gather, logger
 from mastodon import Mastodon
 import csv
 from time import sleep
@@ -14,7 +14,7 @@ def repost(tweet):
         writer = csv.DictWriter(tweet_file, field_names)
         new_row = {"id": tweet.id, "date": tweet.date}
         writer.writerow(new_row)
-    print(
+    logger.info(
         f"Posting tweet with id {tweet.id} from {tweet.date} with content {tweet.rawContent}"
     )
     mastodon = get_mastodon()
@@ -27,7 +27,7 @@ def check_tweet_file(tweet_id):
         reader = csv.DictReader(tweet_file, field_names)
         for row in reader:
             if row["id"] == str(tweet_id):
-                print("Already tweeted " + str(tweet_id))
+                logging.debug("Already tweeted " + str(tweet_id))
                 return True
     return False
 
@@ -42,7 +42,7 @@ def get_mastodon() -> Mastodon:
     api_base_url = os.environ.get("MASTODON_BASE_URL", "https://social.running.cafe")
 
     if not access_token or not api_base_url:
-        print(
+        logger.error(
             "You must set both a MASTODON_ACCESS_TOKEN and MASTODON_BASE_URL environment variable"
         )
         exit(1)
@@ -60,6 +60,7 @@ if __name__ == "__main__":
         try:
             tweet_list = asyncio.run(main())
             tweet_list.sort(key=lambda tweet: tweet.id)
+            logger.info(f"Got {len(tweet_list)} posts from Twitter")
             for tweet in tweet_list:
                 if (
                     (not tweet.quotedTweet)
@@ -69,5 +70,5 @@ if __name__ == "__main__":
                     if not check_tweet_file(tweet.id):
                         repost(tweet)
         except Exception as e:
-            print(e)
+            logger.error(e)
         sleep(30)
