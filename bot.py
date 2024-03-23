@@ -89,4 +89,4 @@ if __name__ == "__main__":
                             posts_errors_counter.inc()
         except Exception as e:
             logger.error(e)
-        sleep(60)
+        sleep(180)
