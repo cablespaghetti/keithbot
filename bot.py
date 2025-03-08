@@ -77,6 +77,81 @@ def get_mastodon() -> Mastodon:
     return Mastodon(access_token=access_token, api_base_url=api_base_url)
 
 
+def get_bluesky() -> Client:
+    """Creates an instance of the Bluesky Client class
+
+    Returns:
+        Client: The instance of the Client Class
+    """
+    client = Client()
+    bluesky_username = os.environ.get("BLUESKY_USERNAME")
+    bluesky_password = os.environ.get("BLUESKY_PASSWORD")
+
+    if not bluesky_username or not bluesky_password:
+        logger.error(
+            "You must set both a BLUESKY_USERNAME and BLUESKY_PASSWORD environment variable"
+        )
+        exit(1)
+
+    profile = client.login(bluesky_username, bluesky_password)
+    logger.debug("Logged in as ", profile.display_name)
+
+    return client
+
+
+def get_bluesky_posts(client):
+    handle = "keithdunn.bsky.social"
+    profile_feed = client.get_author_feed(actor=handle)
+    post_list = []
+    for feed_view in profile_feed.feed:
+        # Skip replies
+        if feed_view.post.record.reply:
+            continue
+
+        # Skips straight reposts
+        if feed_view.post.author.handle != handle:
+            continue
+
+        text = feed_view.post.record.text
+        # Skips posts without #BM100
+        if "#BM100" not in text:
+            continue
+
+        id = feed_view.post.cid
+        timestamp = feed_view.post.record.created_at
+
+        post_dict = {
+            "text": text,
+            "id": id,
+            "image_urls": [],
+            "quote_post_url": None,
+            "link_url": None,
+            "timestamp": timestamp,
+        }
+
+        if feed_view.post.record.embed:
+            embed = feed_view.post.embed
+            if "app.bsky.embed.external" in embed.py_type:
+                embed_uri = embed.external.uri
+                post_dict["link_url"] = embed_uri
+            elif "app.bsky.embed.record" in embed.py_type:
+                embed_post = client.get_posts([embed.record.uri]).posts[0]
+                embed_post_handle = embed_post.author.handle
+                embed_post_id = embed_post.uri.split("/")[-1]
+                embed_post_calculated_url = (
+                    f"https://bsky.app/profile/{embed_post_handle}/post/{embed_post_id}"
+                )
+                post_dict["quote_post_url"] = embed_post_calculated_url
+            elif "app.bsky.embed.images" in embed.py_type:
+                for image in feed_view.post.embed.images:
+                    post_dict["image_urls"].append(image.fullsize)
+
+        post_list.append(post_dict)
+
+    post_list.sort(key=lambda post: post["timestamp"])
+    return post_list
+
+
 if __name__ == "__main__":
     start_http_server(10000)
     posts_scraped_counter = Counter(
@@ -88,74 +163,19 @@ if __name__ == "__main__":
     )
 
     while True:
-        # try:
-        client = Client()
-        bluesky_username = os.environ.get("BLUESKY_USERNAME")
-        bluesky_password = os.environ.get("BLUESKY_PASSWORD")
-
-        if not bluesky_username or not bluesky_password:
-            logger.error(
-                "You must set both a BLUESKY_USERNAME and BLUESKY_PASSWORD environment variable"
-            )
-            exit(1)
-
-        profile = client.login(bluesky_username, bluesky_password)
-        logger.debug("Logged in as ", profile.display_name)
-        handle = "keithdunn.bsky.social"
-        profile_feed = client.get_author_feed(actor=handle, limit=100)
-        post_list = []
-        for feed_view in profile_feed.feed:
-            # Skip replies
-            if feed_view.post.record.reply:
-                continue
-
-            # Skips straight reposts
-            if feed_view.post.author.handle != handle:
-                continue
-
-            text = feed_view.post.record.text
-            # Skips posts without #BM100
-            if "#BM100" not in text:
-                continue
-
-            id = feed_view.post.cid
-            timestamp = feed_view.post.record.created_at
-
-            post_dict = {
-                "text": text,
-                "id": id,
-                "image_urls": [],
-                "quote_post_url": None,
-                "link_url": None,
-                "timestamp": timestamp,
-            }
-
-            if feed_view.post.record.embed:
-                embed = feed_view.post.embed
-                if "app.bsky.embed.external" in embed.py_type:
-                    embed_uri = embed.external.uri
-                    post_dict["link_url"] = embed_uri
-                elif "app.bsky.embed.record" in embed.py_type:
-                    embed_post = client.get_posts([embed.record.uri]).posts[0]
-                    embed_post_handle = embed_post.author.handle
-                    embed_post_id = embed_post.uri.split("/")[-1]
-                    embed_post_calculated_url = f"https://bsky.app/profile/{embed_post_handle}/post/{embed_post_id}"
-                    post_dict["quote_post_url"] = embed_post_calculated_url
-                elif "app.bsky.embed.images" in embed.py_type:
-                    for image in feed_view.post.embed.images:
-                        post_dict["image_urls"].append(image.fullsize)
-
-            post_list.append(post_dict)
-
-        post_list.sort(key=lambda post: post["timestamp"])
-        logger.info(f"Got {len(post_list)} posts from BlueSky")
-        posts_scraped_counter.inc(len(post_list))
-        for post in post_list:
-            if not check_post_log(post["id"]):
-                status_dict = repost(post)
-                if status_dict:
-                    posts_posted_counter.inc()
-                else:
-                    posts_errors_counter.inc()
+        try:
+            client = get_bluesky()
+            post_list = get_bluesky_posts(client)
+            logger.info(f"Got {len(post_list)} posts from BlueSky")
+            posts_scraped_counter.inc(len(post_list))
+            for post in post_list:
+                if not check_post_log(post["id"]):
+                    status_dict = repost(post)
+                    if status_dict:
+                        posts_posted_counter.inc()
+                    else:
+                        posts_errors_counter.inc()
+        except Exception as e:
+            logger.error(e)
 
         sleep(60)
