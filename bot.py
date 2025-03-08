@@ -99,11 +99,13 @@ def get_bluesky() -> Client:
     return client
 
 
-def get_bluesky_posts(client):
+def get_bluesky_posts(client, posts_scraped_counter):
     handle = "keithdunn.bsky.social"
     profile_feed = client.get_author_feed(actor=handle)
     post_list = []
     for feed_view in profile_feed.feed:
+        posts_scraped_counter.inc()
+
         # Skip replies
         if feed_view.post.record.reply:
             continue
@@ -165,9 +167,8 @@ if __name__ == "__main__":
     while True:
         try:
             client = get_bluesky()
-            post_list = get_bluesky_posts(client)
+            post_list = get_bluesky_posts(client, posts_scraped_counter)
             logger.info(f"Got {len(post_list)} posts from BlueSky")
-            posts_scraped_counter.inc(len(post_list))
             for post in post_list:
                 if not check_post_log(post["id"]):
                     status_dict = repost(post)
