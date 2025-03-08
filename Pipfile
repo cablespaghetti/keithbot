@@ -5,11 +5,11 @@ name = "pypi"
 
 [packages]
 "mastodon.py" = "*"
-twscrape = "*"
 prometheus-client = "*"
+atproto = "*"
 
 [dev-packages]
 black = "*"
 
 [requires]
-python_version = "3.11"
+python_version = "3.12"
