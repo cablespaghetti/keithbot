@@ -2,7 +2,6 @@ import csv
 import logging
 import os
 import urllib
-from pprint import pprint
 from time import sleep
 
 from atproto import Client, client_utils
@@ -14,48 +13,48 @@ logging.basicConfig(encoding="utf-8", level=logging.INFO)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
-def repost(tweet):
+def repost(bluesky_post):
     mastodon = get_mastodon()
-    post_content = tweet["text"]
-    if tweet["quote_post_url"]:
+    post_content = bluesky_post["text"]
+    if bluesky_post["quote_post_url"]:
         post_content += "\n"
-        post_content += f'Quoted Post: {tweet["quote_post_url"]}'
-    elif tweet["link_url"]:
+        post_content += f'Quoted Post: {bluesky_post["quote_post_url"]}'
+    elif bluesky_post["link_url"]:
         post_content += "\n"
-        post_content += tweet["link_url"]
+        post_content += bluesky_post["link_url"]
 
     media_ids = []
 
-    if tweet["image_urls"]:
-        for image_url in tweet["image_urls"]:
+    if bluesky_post["image_urls"]:
+        for image_url in bluesky_post["image_urls"]:
             logger.info(f"Downloading image from {image_url}")
             image_response = urllib.request.urlopen(image_url)
             image_mime_type = image_response.headers["Content-Type"]
             image_data = image_response.read()
-            logger.info("Posting image")
+            logger.debug("Posting image")
             image_media_id = mastodon.media_post(image_data, image_mime_type)
             media_ids.append(image_media_id)
 
     status_dict = mastodon.status_post(post_content, media_ids=media_ids)
     if status_dict:
         logger.info(
-            f'Posted tweet with id {tweet["id"]} from {tweet["timestamp"]} with content {post_content}'
+            f'Posted Bluesky post with id {bluesky_post["id"]} from {bluesky_post["timestamp"]} with content {post_content}'
         )
         field_names = ("id", "date")
-        with open("tweets.csv", "a") as tweet_file:
-            writer = csv.DictWriter(tweet_file, field_names)
-            new_row = {"id": tweet["id"], "date": tweet["timestamp"]}
+        with open("posts.csv", "a") as post_log:
+            writer = csv.DictWriter(post_log, field_names)
+            new_row = {"id": bluesky_post["id"], "date": bluesky_post["timestamp"]}
             writer.writerow(new_row)
     return status_dict
 
 
-def check_tweet_file(tweet_id):
+def check_post_log(post_id):
     field_names = ("id", "date")
-    with open("tweets.csv", "r") as tweet_file:
-        reader = csv.DictReader(tweet_file, field_names)
+    with open("posts.csv", "r") as post_log:
+        reader = csv.DictReader(post_log, field_names)
         for row in reader:
-            if row["id"] == str(tweet_id):
-                logger.debug("Already tweeted " + str(tweet_id))
+            if row["id"] == str(post_id):
+                logger.debug("Already posted " + str(post_id))
                 return True
     return False
 
@@ -151,9 +150,9 @@ if __name__ == "__main__":
         post_list.sort(key=lambda post: post["timestamp"])
         logger.info(f"Got {len(post_list)} posts from BlueSky")
         posts_scraped_counter.inc(len(post_list))
-        for tweet in post_list:
-            if not check_tweet_file(tweet["id"]):
-                status_dict = repost(tweet)
+        for post in post_list:
+            if not check_post_log(post["id"]):
+                status_dict = repost(post)
                 if status_dict:
                     posts_posted_counter.inc()
                 else:
